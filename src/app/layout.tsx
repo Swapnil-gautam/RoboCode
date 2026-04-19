@@ -28,6 +28,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <head>
         <link
@@ -36,9 +37,12 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body
+        className="h-full overflow-hidden flex flex-col"
+        suppressHydrationWarning
+      >
         <Navbar />
-        <main className="flex-1">{children}</main>
+        <main className="min-h-0 flex-1 overflow-auto">{children}</main>
       </body>
     </html>
   );

@@ -11,6 +11,8 @@ export const problems: Problem[] = [
 
 Given a 2-link planar robot arm with link lengths $l_1$ and $l_2$, and joint angles $\\theta_1$ and $\\theta_2$, compute the **(x, y)** position of the end-effector.
 
+---
+
 ### Formulas
 
 The end-effector position is calculated as:
@@ -19,19 +21,52 @@ $$x = l_1 \\cos(\\theta_1) + l_2 \\cos(\\theta_1 + \\theta_2)$$
 
 $$y = l_1 \\sin(\\theta_1) + l_2 \\sin(\\theta_1 + \\theta_2)$$
 
+---
+
 ### Function Signature
 
 \`\`\`python
 def forward_kinematics(l1: float, l2: float, theta1: float, theta2: float) -> tuple[float, float]:
 \`\`\`
 
-**Parameters:**
-- \`l1\`: Length of the first link
-- \`l2\`: Length of the second link  
-- \`theta1\`: Angle of the first joint (radians)
-- \`theta2\`: Angle of the second joint (radians, relative to first link)
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| \`l1\` | float | Length of the first link |
+| \`l2\` | float | Length of the second link |
+| \`theta1\` | float | Angle of the first joint (radians) |
+| \`theta2\` | float | Angle of the second joint (radians, relative to first link) |
 
 **Returns:** A tuple \`(x, y)\` — the end-effector position, each rounded to 4 decimal places.
+
+---
+
+### Constraints
+
+- $0 < l_1, l_2 \\leq 10$
+- $-\\pi \\leq \\theta_1, \\theta_2 \\leq \\pi$
+- Output values must be rounded to exactly **4 decimal places**
+
+---
+
+### Examples
+
+**Example 1 — Fully extended along x-axis**
+
+\`\`\`
+Input:  l1 = 1, l2 = 1, theta1 = 0, theta2 = 0
+Output: (2.0, 0.0)
+\`\`\`
+
+Both joints are at 0°, so both links point along the positive x-axis. The end-effector is simply at $x = l_1 + l_2 = 2$ and $y = 0$.
+
+**Example 2 — L-shaped configuration**
+
+\`\`\`
+Input:  l1 = 1, l2 = 1, theta1 = 0, theta2 = π/2
+Output: (1.0, 1.0)
+\`\`\`
+
+The first link lies along the x-axis (reaching $x=1, y=0$). The second joint bends 90° upward, so the second link points straight up. The end-effector lands at $(1, 1)$: $x = 1 \\cdot \\cos(0) + 1 \\cdot \\cos(\\pi/2) = 1 + 0 = 1$ and $y = 1 \\cdot \\sin(0) + 1 \\cdot \\sin(\\pi/2) = 0 + 1 = 1$.
 `,
     theory: `## Theory: Forward Kinematics
 
@@ -124,7 +159,7 @@ for tc in test_cases:
         result = forward_kinematics(inp["l1"], inp["l2"], inp["theta1"], inp["theta2"])
         result = (round(result[0], 4), round(result[1], 4))
         expected = tuple(tc["expected"])
-        passed = abs(result[0] - expected[0]) < 1e-3 and abs(result[1] - expected[1]) < 1e-3
+        passed = bool(abs(result[0] - expected[0]) < 1e-3 and abs(result[1] - expected[1]) < 1e-3)
         results.append({"id": tc["id"], "passed": passed, "output": list(result), "expected": list(expected)})
     except Exception as e:
         results.append({"id": tc["id"], "passed": False, "error": str(e)})
@@ -142,6 +177,8 @@ json.dumps(results)
 
 Given a 2-link planar robot arm with link lengths $l_1$ and $l_2$, compute the joint angles $\\theta_1$ and $\\theta_2$ needed to reach a target position $(x, y)$.
 
+---
+
 ### Approach
 
 Using the **law of cosines**, we can solve for $\\theta_2$ first:
@@ -152,19 +189,53 @@ Then $\\theta_1$ is found using:
 
 $$\\theta_1 = \\text{atan2}(y, x) - \\text{atan2}(l_2 \\sin(\\theta_2),\\ l_1 + l_2 \\cos(\\theta_2))$$
 
+---
+
 ### Function Signature
 
 \`\`\`python
 def inverse_kinematics(l1: float, l2: float, x: float, y: float) -> tuple[float, float]:
 \`\`\`
 
-**Parameters:**
-- \`l1\`, \`l2\`: Link lengths
-- \`x\`, \`y\`: Target end-effector position
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| \`l1\` | float | Length of the first link |
+| \`l2\` | float | Length of the second link |
+| \`x\` | float | Target x-position of the end-effector |
+| \`y\` | float | Target y-position of the end-effector |
 
-**Returns:** A tuple \`(theta1, theta2)\` in radians, rounded to 4 decimal places. Return the **elbow-up** solution (positive $\\theta_2$).
+**Returns:** A tuple \`(theta1, theta2)\` in radians, rounded to 4 decimal places. Return the **elbow-up** solution (positive $\\theta_2$). If the target is unreachable, return \`(None, None)\`.
 
-If the target is unreachable, return \`(None, None)\`.
+---
+
+### Constraints
+
+- $0 < l_1, l_2 \\leq 10$
+- The target must satisfy $|l_1 - l_2| \\leq \\sqrt{x^2 + y^2} \\leq l_1 + l_2$ to be reachable
+- Return the **elbow-up** configuration only (positive $\\theta_2$)
+- Output angles rounded to exactly **4 decimal places**
+
+---
+
+### Examples
+
+**Example 1 — Fully extended along x-axis**
+
+\`\`\`
+Input:  l1 = 1, l2 = 1, x = 2, y = 0
+Output: (0.0, 0.0)
+\`\`\`
+
+The target is at distance $2 = l_1 + l_2$, so the arm must be fully extended. Both angles are $0$ — link 1 along x-axis, link 2 continues straight.
+
+**Example 2 — Target at (1, 1) with equal links**
+
+\`\`\`
+Input:  l1 = 1, l2 = 1, x = 1, y = 1
+Output: (0.7854, 1.5708)
+\`\`\`
+
+The target distance is $\\sqrt{2} \\approx 1.414$. Using the law of cosines: $\\cos(\\theta_2) = (2 - 1 - 1) / 2 = 0$, so $\\theta_2 = \\pi/2 \\approx 1.5708$. Then $\\theta_1 = \\text{atan2}(1,1) - \\text{atan2}(1, 1) \\approx 0.7854 - 0 = 0.7854$ rad ($45°$).
 `,
     theory: `## Theory: Inverse Kinematics
 
@@ -253,14 +324,14 @@ for tc in test_cases:
         result = inverse_kinematics(inp["l1"], inp["l2"], inp["x"], inp["y"])
         if result[0] is None:
             passed = tc["expected"][0] is None
-            results.append({"id": tc["id"], "passed": passed, "output": [None, None], "expected": tc["expected"]})
+            results.append({"id": tc["id"], "passed": bool(passed), "output": [None, None], "expected": tc["expected"]})
         else:
             result = (round(result[0], 4), round(result[1], 4))
             expected = tuple(tc["expected"])
             # Verify via FK: the angles should produce the target position
             x_check = inp["l1"] * math.cos(result[0]) + inp["l2"] * math.cos(result[0] + result[1])
             y_check = inp["l1"] * math.sin(result[0]) + inp["l2"] * math.sin(result[0] + result[1])
-            passed = abs(x_check - inp["x"]) < 0.05 and abs(y_check - inp["y"]) < 0.05
+            passed = bool(abs(x_check - inp["x"]) < 0.05 and abs(y_check - inp["y"]) < 0.05)
             results.append({"id": tc["id"], "passed": passed, "output": list(result), "expected": [round(x_check,4), round(y_check,4)]})
     except Exception as e:
         results.append({"id": tc["id"], "passed": False, "error": str(e)})
@@ -278,6 +349,8 @@ json.dumps(results)
 
 Implement a **PID (Proportional-Integral-Derivative) controller** that computes a control signal to drive a system to a desired setpoint.
 
+---
+
 ### PID Formula
 
 $$u(t) = K_p \\cdot e(t) + K_i \\cdot \\int_0^t e(\\tau)\\,d\\tau + K_d \\cdot \\frac{de(t)}{dt}$$
@@ -288,6 +361,8 @@ In discrete form:
 
 $$u[k] = K_p \\cdot e[k] + K_i \\cdot \\sum_{i=0}^{k} e[i] \\cdot dt + K_d \\cdot \\frac{e[k] - e[k-1]}{dt}$$
 
+---
+
 ### Function Signature
 
 \`\`\`python
@@ -296,15 +371,49 @@ def pid_step(kp: float, ki: float, kd: float, setpoint: float,
              dt: float) -> tuple[float, float, float]:
 \`\`\`
 
-**Parameters:**
-- \`kp\`, \`ki\`, \`kd\`: PID gains
-- \`setpoint\`: Target value
-- \`current\`: Current measured value
-- \`integral\`: Accumulated integral term from previous steps
-- \`prev_error\`: Error from the previous time step
-- \`dt\`: Time step size
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| \`kp\` | float | Proportional gain |
+| \`ki\` | float | Integral gain |
+| \`kd\` | float | Derivative gain |
+| \`setpoint\` | float | Target value |
+| \`current\` | float | Current measured value |
+| \`integral\` | float | Accumulated integral from previous steps |
+| \`prev_error\` | float | Error from the previous time step |
+| \`dt\` | float | Time step size |
 
-**Returns:** A tuple \`(control_signal, new_integral, current_error)\`
+**Returns:** A tuple \`(control_signal, new_integral, current_error)\`, each rounded to 4 decimal places.
+
+---
+
+### Constraints
+
+- $K_p, K_i, K_d \\geq 0$
+- $dt > 0$ (time step must be positive)
+- No integral windup clamping is required for this problem
+- Output values must be rounded to exactly **4 decimal places**
+
+---
+
+### Examples
+
+**Example 1 — Pure proportional control**
+
+\`\`\`
+Input:  kp=1.0, ki=0.0, kd=0.0, setpoint=10.0, current=0.0, integral=0.0, prev_error=0.0, dt=0.1
+Output: (10.0, 0.0, 10.0)
+\`\`\`
+
+Error is $10 - 0 = 10$. With only $K_p = 1$, the control signal is $1 \\times 10 = 10$. The integral term stays $0$ (since $K_i = 0$), and the current error is $10$.
+
+**Example 2 — PI control with history**
+
+\`\`\`
+Input:  kp=1.0, ki=0.5, kd=0.0, setpoint=10.0, current=8.0, integral=5.0, prev_error=3.0, dt=0.1
+Output: (4.6, 5.2, 2.0)
+\`\`\`
+
+Error is $10 - 8 = 2$. New integral: $5.0 + 2.0 \\times 0.1 = 5.2$. Control: $1.0 \\times 2 + 0.5 \\times 5.2 = 2 + 2.6 = 4.6$. The system is converging — the error dropped from $3$ to $2$.
 `,
     theory: `## Theory: PID Control
 
@@ -409,7 +518,7 @@ for tc in test_cases:
                          inp["current"], inp["integral"], inp["prev_error"], inp["dt"])
         result = (round(result[0], 4), round(result[1], 4), round(result[2], 4))
         expected = tc["expected"]
-        passed = all(abs(float(r) - float(e)) < 0.01 for r, e in zip(result, expected))
+        passed = bool(all(abs(float(r) - float(e)) < 0.01 for r, e in zip(result, expected)))
         results.append({"id": tc["id"], "passed": passed, "output": list(result), "expected": expected})
     except Exception as e:
         results.append({"id": tc["id"], "passed": False, "error": str(e)})
@@ -427,6 +536,8 @@ json.dumps(results)
 
 Implement a single **predict-update** step of a 1D Kalman filter.
 
+---
+
 ### Predict Step
 
 $$\\hat{x}^- = \\hat{x} + u$$
@@ -438,6 +549,8 @@ $$K = \\frac{P^-}{P^- + R}$$
 $$\\hat{x} = \\hat{x}^- + K \\cdot (z - \\hat{x}^-)$$
 $$P = (1 - K) \\cdot P^-$$
 
+---
+
 ### Function Signature
 
 \`\`\`python
@@ -445,15 +558,46 @@ def kalman_1d(x: float, P: float, z: float, u: float,
               Q: float, R: float) -> tuple[float, float]:
 \`\`\`
 
-**Parameters:**
-- \`x\`: Current state estimate
-- \`P\`: Current estimate uncertainty (variance)
-- \`z\`: Measurement
-- \`u\`: Control input (motion)
-- \`Q\`: Process noise variance
-- \`R\`: Measurement noise variance
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| \`x\` | float | Current state estimate |
+| \`P\` | float | Current estimate uncertainty (variance) |
+| \`z\` | float | Measurement value |
+| \`u\` | float | Control input (motion) |
+| \`Q\` | float | Process noise variance |
+| \`R\` | float | Measurement noise variance |
 
 **Returns:** A tuple \`(new_x, new_P)\` — the updated state estimate and uncertainty, rounded to 4 decimal places.
+
+---
+
+### Constraints
+
+- $P, Q, R > 0$ (variances must be positive)
+- The Kalman gain $K$ will always be in range $[0, 1]$
+- Output values must be rounded to exactly **4 decimal places**
+
+---
+
+### Examples
+
+**Example 1 — Balanced trust**
+
+\`\`\`
+Input:  x=0, P=1, z=1, u=0, Q=0.1, R=1
+Output: (0.5238, 0.5238)
+\`\`\`
+
+Predict: $\\hat{x}^- = 0 + 0 = 0$, $P^- = 1 + 0.1 = 1.1$. Kalman gain: $K = 1.1 / (1.1 + 1) = 0.5238$. Update: $\\hat{x} = 0 + 0.5238 \\times (1 - 0) = 0.5238$. The filter splits the difference between prediction ($0$) and measurement ($1$) roughly equally.
+
+**Example 2 — Very uncertain state, accurate sensor**
+
+\`\`\`
+Input:  x=10, P=100, z=5, u=0, Q=1, R=1
+Output: (5.0099, 0.9901)
+\`\`\`
+
+Predict: $\\hat{x}^- = 10$, $P^- = 101$. Gain: $K = 101/102 \\approx 0.99$. The state uncertainty is huge ($P=100$) while the sensor is accurate ($R=1$), so the filter almost completely trusts the measurement: $\\hat{x} \\approx 5.01$.
 `,
     theory: `## Theory: Kalman Filter
 
@@ -552,7 +696,7 @@ for tc in test_cases:
         result = kalman_1d(inp["x"], inp["P"], inp["z"], inp["u"], inp["Q"], inp["R"])
         result = (round(result[0], 4), round(result[1], 4))
         expected = tuple(tc["expected"])
-        passed = abs(result[0] - expected[0]) < 0.01 and abs(result[1] - expected[1]) < 0.01
+        passed = bool(abs(result[0] - expected[0]) < 0.01 and abs(result[1] - expected[1]) < 0.01)
         results.append({"id": tc["id"], "passed": passed, "output": list(result), "expected": list(expected)})
     except Exception as e:
         results.append({"id": tc["id"], "passed": False, "error": str(e)})
@@ -570,6 +714,8 @@ json.dumps(results)
 
 Implement the **Pure Pursuit** algorithm to compute the steering angle for a robot following a path.
 
+---
+
 ### Algorithm
 
 Given the robot's position $(x_r, y_r)$ with heading $\\theta$, and a lookahead point $(x_g, y_g)$ on the path at distance $L_d$:
@@ -584,6 +730,8 @@ $$\\kappa = \\frac{2 \\cdot y_{local}}{L_d^2}$$
 3. Compute the steering angle (for a robot with wheelbase $L$):
 $$\\delta = \\arctan(\\kappa \\cdot L)$$
 
+---
+
 ### Function Signature
 
 \`\`\`python
@@ -592,7 +740,48 @@ def pure_pursuit(robot_x: float, robot_y: float, robot_theta: float,
                  lookahead: float, wheelbase: float) -> float:
 \`\`\`
 
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| \`robot_x\` | float | Robot's current x-position |
+| \`robot_y\` | float | Robot's current y-position |
+| \`robot_theta\` | float | Robot's heading angle (radians) |
+| \`goal_x\` | float | Lookahead point x-position |
+| \`goal_y\` | float | Lookahead point y-position |
+| \`lookahead\` | float | Lookahead distance $L_d$ |
+| \`wheelbase\` | float | Robot wheelbase length $L$ |
+
 **Returns:** The steering angle $\\delta$ in radians, rounded to 4 decimal places.
+
+---
+
+### Constraints
+
+- $L_d > 0$ (lookahead distance must be positive)
+- $L > 0$ (wheelbase must be positive)
+- $-\\pi \\leq \\theta \\leq \\pi$
+- Output rounded to exactly **4 decimal places**
+
+---
+
+### Examples
+
+**Example 1 — Goal straight ahead**
+
+\`\`\`
+Input:  robot_x=0, robot_y=0, robot_theta=0, goal_x=2, goal_y=0, lookahead=2, wheelbase=1
+Output: 0.0
+\`\`\`
+
+The goal is directly ahead of the robot. In the local frame, $y_{local} = 0$, so curvature $\\kappa = 0$ and steering angle $\\delta = 0$ — no turning needed.
+
+**Example 2 — Goal to the left**
+
+\`\`\`
+Input:  robot_x=0, robot_y=0, robot_theta=0, goal_x=2, goal_y=1, lookahead=2.236, wheelbase=1
+Output: 0.3805
+\`\`\`
+
+The goal is ahead and to the left. Local transform gives $y_{local} = 1$. Curvature: $\\kappa = 2 \\times 1 / 2.236^2 = 0.4$. Steering: $\\delta = \\arctan(0.4 \\times 1) = 0.3805$ rad ($\\approx 21.8°$) — a moderate left turn.
 `,
     theory: `## Theory: Pure Pursuit
 
@@ -694,7 +883,7 @@ for tc in test_cases:
                             inp["goal_x"], inp["goal_y"], inp["lookahead"], inp["wheelbase"])
         result = round(result, 4)
         expected = tc["expected"]
-        passed = abs(result - expected) < 0.01
+        passed = bool(abs(result - expected) < 0.01)
         results.append({"id": tc["id"], "passed": passed, "output": result, "expected": expected})
     except Exception as e:
         results.append({"id": tc["id"], "passed": False, "error": str(e)})

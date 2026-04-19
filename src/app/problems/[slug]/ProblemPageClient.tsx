@@ -154,9 +154,9 @@ export default function ProblemPageClient({ slug }: { slug: string }) {
   ];
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)]">
+    <div className="flex h-[calc(100vh-3.5rem)] w-full overflow-hidden">
       {/* Left Panel */}
-      <div className="flex w-1/2 flex-col border-r border-border-default">
+      <div className="flex h-full min-h-0 w-1/2 flex-col border-r border-border-default">
         {/* Tabs */}
         <div className="flex items-center gap-1 border-b border-border-default bg-bg-secondary/60 px-4">
           {tabs.map((tab) => (
@@ -189,46 +189,55 @@ export default function ProblemPageClient({ slug }: { slug: string }) {
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-6">
           {activeTab === "description" && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-text-primary">
-                  {problem.title}
-                </h1>
-                <DifficultyBadge difficulty={problem.difficulty} />
-              </div>
-              <div className="flex gap-2">
-                {problem.topics.map((t) => (
-                  <span
-                    key={t}
-                    className="rounded-md bg-bg-tertiary px-2.5 py-1 text-xs text-text-secondary"
-                  >
-                    {t}
-                  </span>
-                ))}
+            <div className="min-w-0 space-y-5">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-lg font-bold text-text-primary tracking-tight">
+                    {problem.title}
+                  </h1>
+                  <DifficultyBadge difficulty={problem.difficulty} />
+                </div>
+                <div className="flex gap-1.5">
+                  {problem.topics.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded-full bg-accent-green/10 border border-accent-green/20 px-2.5 py-0.5 text-[10px] font-medium text-accent-green tracking-wide uppercase"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               {VizComponent && (
-                <div className="rounded-xl border border-border-default bg-bg-secondary overflow-hidden">
+                <div className="rounded-xl border border-border-default bg-bg-secondary overflow-hidden shadow-lg shadow-black/20">
                   <VizComponent />
                 </div>
               )}
 
-              <MarkdownContent content={problem.description} />
+              <div className="min-w-0 max-w-full rounded-xl border border-border-default bg-bg-secondary/40 p-5">
+                <MarkdownContent content={problem.description} />
+              </div>
             </div>
           )}
 
           {activeTab === "theory" && (
-            <MarkdownContent content={problem.theory} />
+            <div className="min-w-0 max-w-full rounded-xl border border-border-default bg-bg-secondary/40 p-5">
+              <MarkdownContent content={problem.theory} />
+            </div>
           )}
 
           {activeTab === "solution" && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-text-primary">
-                Reference Solution
-              </h2>
-              <pre className="rounded-xl border border-border-default bg-bg-tertiary p-4 text-sm text-text-secondary font-mono overflow-auto">
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-1 rounded-full bg-accent-green" />
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+                  Reference Solution
+                </h2>
+              </div>
+              <pre className="rounded-xl border border-border-default bg-bg-tertiary p-4 text-sm text-text-secondary font-mono overflow-auto leading-relaxed">
                 {problem.solutionCode}
               </pre>
             </div>
@@ -237,7 +246,7 @@ export default function ProblemPageClient({ slug }: { slug: string }) {
       </div>
 
       {/* Right Panel */}
-      <div className="flex w-1/2 flex-col">
+      <div className="flex h-full min-h-0 w-1/2 min-w-0 flex-col">
         {/* Code Editor */}
         <div className="relative flex-1 border-b border-border-default">
           {pyLoading && (

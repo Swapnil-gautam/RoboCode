@@ -40,3 +40,66 @@ body {
   overflow-y: hidden;
   padding: 0.5rem 0;
 }
+
+.markdown-content {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.markdown-content pre {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.markdown-content pre code {
+  display: block;
+  width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+}
+
+.markdown-content th {
+  border-bottom: 1px solid var(--color-border-default);
+  text-align: left;
+  padding: 0.4rem 0.75rem;
+}
+
+.markdown-content td {
+  border-bottom: 1px solid var(--color-border-default);
+  padding: 0.4rem 0.75rem;
+}
+
+.markdown-content tr:last-child td {
+  border-bottom: none;
+}
+
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid var(--color-border-default);
+  margin: 1.25rem 0;
+}
+
+.markdown-content h3 {
+  position: relative;
+  padding-left: 0.75rem;
+}
+
+.markdown-content h3::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  bottom: 0.15em;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--color-accent-green);
+  opacity: 0.6;
+}
