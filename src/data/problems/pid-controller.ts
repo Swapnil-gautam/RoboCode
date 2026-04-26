@@ -43,13 +43,8 @@ You want to reach a **setpoint** (target). The **error** is how far you are from
 
 ---
 
-### Function Signature
 
-\`\`\`python
-def pid_step(kp: float, ki: float, kd: float, setpoint: float,
-             current: float, integral: float, prev_error: float,
-             dt: float) -> tuple[float, float, float]:
-\`\`\`
+### Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -98,9 +93,7 @@ Error is now 2 (improving from 3). Control signal is smaller because we're close
 
 ### Hint
 
-This is the core equation — use it each step:
-
-$$\\text{control} = K_p \\times e[k] + K_i \\times \\text{integral} + K_d \\times \\frac{e[k] - e[k-1]}{dt}$$
+The output is a sum of three terms — one per gain. Each term uses a different view of the error: current, accumulated, and changing.
 `,
   theory: `## Theory: PID Control
 

@@ -42,12 +42,8 @@ But both are noisy! Dead reckoning drifts. Sensors have errors. Which should you
 
 ---
 
-### Function Signature
 
-\`\`\`python
-def kalman_1d(x: float, P: float, z: float, u: float,
-              Q: float, R: float) -> tuple[float, float]:
-\`\`\`
+### Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

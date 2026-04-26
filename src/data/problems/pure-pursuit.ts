@@ -35,13 +35,8 @@ It's called "Pure Pursuit" because the robot purely pursues the lookahead point 
 
 ---
 
-### Function Signature
 
-\`\`\`python
-def pure_pursuit(robot_x: float, robot_y: float, robot_theta: float,
-                 goal_x: float, goal_y: float,
-                 lookahead: float, wheelbase: float) -> float:
-\`\`\`
+### Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

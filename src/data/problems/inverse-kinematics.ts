@@ -32,11 +32,8 @@ For this problem, you always return the **elbow-up solution** (the configuration
 
 ---
 
-### Function Signature
 
-\`\`\`python
-def inverse_kinematics(l1: float, l2: float, x: float, y: float) -> tuple[float, float]:
-\`\`\`
+### Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

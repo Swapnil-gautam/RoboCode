@@ -5,6 +5,7 @@ export type Topic =
   | "Controls"
   | "Localization"
   | "Path Planning"
+  | "Decision Making"
   | "Dynamics";
 
 export interface TestCase {
@@ -12,6 +13,14 @@ export interface TestCase {
   input: Record<string, unknown>;
   expected: unknown;
   description?: string;
+}
+
+export interface TestResult {
+  id: number;
+  passed: boolean;
+  output?: unknown;
+  expected?: unknown;
+  error?: string;
 }
 
 export interface Problem {

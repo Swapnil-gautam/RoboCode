@@ -9,43 +9,8 @@ import CodeEditor from "@/components/editor/CodeEditor";
 import TestCasePanel from "@/components/editor/TestCasePanel";
 import MarkdownContent from "@/components/problems/MarkdownContent";
 import DifficultyBadge from "@/components/problems/DifficultyBadge";
+import type { TestResult } from "@/data/types";
 import dynamic from "next/dynamic";
-
-const ForwardKinematicsViz = dynamic(
-  () => import("@/components/visualizations/ForwardKinematicsViz"),
-  {
-    ssr: false,
-    loading: () => <VizLoadingFallback />,
-  }
-);
-const InverseKinematicsViz = dynamic(
-  () => import("@/components/visualizations/InverseKinematicsViz"),
-  {
-    ssr: false,
-    loading: () => <VizLoadingFallback />,
-  }
-);
-const PIDControllerViz = dynamic(
-  () => import("@/components/visualizations/PIDControllerViz"),
-  {
-    ssr: false,
-    loading: () => <VizLoadingFallback />,
-  }
-);
-const KalmanFilterViz = dynamic(
-  () => import("@/components/visualizations/KalmanFilterViz"),
-  {
-    ssr: false,
-    loading: () => <VizLoadingFallback />,
-  }
-);
-const PurePursuitViz = dynamic(
-  () => import("@/components/visualizations/PurePursuitViz"),
-  {
-    ssr: false,
-    loading: () => <VizLoadingFallback />,
-  }
-);
 
 function VizLoadingFallback() {
   return (
@@ -69,32 +34,32 @@ function VizLoadingFallback() {
   );
 }
 
-const vizMap: Record<string, React.ComponentType> = {
-  "forward-kinematics": ForwardKinematicsViz,
-  "inverse-kinematics": InverseKinematicsViz,
-  "pid-controller": PIDControllerViz,
-  "kalman-filter": KalmanFilterViz,
-  "pure-pursuit": PurePursuitViz,
+const lazyViz = (loader: () => Promise<{ default: React.ComponentType }>) =>
+  dynamic(loader, { ssr: false, loading: () => <VizLoadingFallback /> });
+
+const vizComponents: Record<string, React.ComponentType> = {
+  "forward-kinematics": lazyViz(() => import("@/components/visualizations/ForwardKinematicsViz")),
+  "inverse-kinematics": lazyViz(() => import("@/components/visualizations/InverseKinematicsViz")),
+  "pid-controller": lazyViz(() => import("@/components/visualizations/PIDControllerViz")),
+  "kalman-filter": lazyViz(() => import("@/components/visualizations/KalmanFilterViz")),
+  "pure-pursuit": lazyViz(() => import("@/components/visualizations/PurePursuitViz")),
+  "coordinate-frames": lazyViz(() => import("@/components/visualizations/CoordinateFramesViz")),
+  "differential-drive": lazyViz(() => import("@/components/visualizations/DifferentialDriveViz")),
+  "differential-drive-ii": lazyViz(() => import("@/components/visualizations/DifferentialDriveOdometryViz")),
+  "a-star-grid-path-planning": lazyViz(() => import("@/components/visualizations/AStarGridPathPlanningViz")),
+  "finite-state-machine": lazyViz(() => import("@/components/visualizations/FiniteStateMachineViz")),
 };
 
 type ActiveTab = "description" | "theory" | "solution";
 
 export default function ProblemPageClient({ slug }: { slug: string }) {
   const problem = getProblemBySlug(slug);
-  const { loading: pyLoading, runCode } = usePyodide();
+  const { loading: pyLoading, error: pyError, runCode } = usePyodide();
   const { markSolved, isSolved } = useProgress();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("description");
   const [running, setRunning] = useState(false);
-  const [results, setResults] = useState<
-    Array<{
-      id: number;
-      passed: boolean;
-      output?: unknown;
-      expected?: unknown;
-      error?: string;
-    }>
-  >([]);
+  const [results, setResults] = useState<TestResult[]>([]);
   const [stdout, setStdout] = useState("");
   const [runError, setRunError] = useState<string | undefined>();
   const codeRef = useRef(problem?.starterCode ?? "");
@@ -144,7 +109,7 @@ export default function ProblemPageClient({ slug }: { slug: string }) {
     );
   }
 
-  const VizComponent = vizMap[problem.vizType];
+  const VizComponent = vizComponents[problem.vizType];
   const solved = isSolved(problem.slug);
 
   const tabs: { key: ActiveTab; label: string }[] = [
@@ -249,21 +214,31 @@ export default function ProblemPageClient({ slug }: { slug: string }) {
       <div className="flex h-full min-h-0 w-1/2 min-w-0 flex-col">
         {/* Code Editor */}
         <div className="relative flex-1 border-b border-border-default">
-          {pyLoading && (
-            <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 bg-bg-secondary/90 py-1.5 text-xs text-accent-gold">
-              <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24">
-                <circle
-                  cx={12}
-                  cy={12}
-                  r={10}
-                  stroke="currentColor"
-                  strokeWidth={3}
-                  fill="none"
-                  strokeDasharray="32"
-                  strokeDashoffset="12"
-                />
-              </svg>
-              Loading Python runtime (NumPy included)...
+          {(pyLoading || pyError) && (
+            <div
+              className={`absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 bg-bg-secondary/90 py-1.5 text-xs ${
+                pyError ? "text-red-400" : "text-accent-gold"
+              }`}
+            >
+              {pyLoading ? (
+                <>
+                  <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24">
+                    <circle
+                      cx={12}
+                      cy={12}
+                      r={10}
+                      stroke="currentColor"
+                      strokeWidth={3}
+                      fill="none"
+                      strokeDasharray="32"
+                      strokeDashoffset="12"
+                    />
+                  </svg>
+                  Loading Python runtime (NumPy included)...
+                </>
+              ) : (
+                `Python runtime error: ${pyError}`
+              )}
             </div>
           )}
           <CodeEditor

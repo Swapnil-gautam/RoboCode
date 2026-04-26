@@ -8,11 +8,20 @@ import { useProgress } from "@/hooks/useProgress";
 import DifficultyBadge from "./DifficultyBadge";
 import TopicTag from "./TopicTag";
 
-const allTopics: (Topic | "All")[] = [
-  "All",
+const topicOrder: Topic[] = [
   "Kinematics",
   "Controls",
   "Localization",
+  "Path Planning",
+  "Decision Making",
+  "Dynamics",
+];
+
+const allTopics: (Topic | "All")[] = [
+  "All",
+  ...topicOrder.filter((topic) =>
+    problems.some((problem) => problem.topics.includes(topic))
+  ),
 ];
 
 export default function ProblemList() {
@@ -20,10 +29,13 @@ export default function ProblemList() {
   const [search, setSearch] = useState("");
   const { isSolved } = useProgress();
 
+  const lowerSearch = search.toLowerCase();
   const filtered = problems.filter((p) => {
     const topicMatch =
       activeTopic === "All" || p.topics.includes(activeTopic as Topic);
-    const searchMatch = p.title.toLowerCase().includes(search.toLowerCase());
+    const searchMatch =
+      p.title.toLowerCase().includes(lowerSearch) ||
+      p.topics.some((t) => t.toLowerCase().includes(lowerSearch));
     return topicMatch && searchMatch;
   });
 

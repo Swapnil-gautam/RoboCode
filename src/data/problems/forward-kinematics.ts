@@ -31,11 +31,8 @@ You must find the **(x, y)** position of the **end-effector** (the tip of the ar
 
 ---
 
-### Function Signature
 
-\`\`\`python
-def forward_kinematics(l1: float, l2: float, theta1: float, theta2: float) -> tuple[float, float]:
-\`\`\`
+### Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

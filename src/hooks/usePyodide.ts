@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
+const PYODIDE_VERSION = "0.26.4";
+const PYODIDE_CDN = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+const LOAD_TIMEOUT_MS = 15_000;
+
 interface PyodideInstance {
   runPythonAsync: (code: string) => Promise<unknown>;
   loadPackage: (pkg: string | string[]) => Promise<void>;
@@ -25,21 +29,29 @@ export function usePyodide() {
     initRef.current = true;
 
     async function init() {
+      const timeout = (msg: string) =>
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(msg)), LOAD_TIMEOUT_MS)
+        );
+
       try {
         const script = document.createElement("script");
-        script.src =
-          "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js";
+        script.src = `${PYODIDE_CDN}pyodide.js`;
         script.async = true;
 
-        await new Promise<void>((resolve, reject) => {
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error("Failed to load Pyodide"));
-          document.head.appendChild(script);
-        });
+        await Promise.race([
+          new Promise<void>((resolve, reject) => {
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error("Failed to load Pyodide script"));
+            document.head.appendChild(script);
+          }),
+          timeout("Timed out loading Python runtime"),
+        ]);
 
-        const pyodide = await window.loadPyodide!({
-          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/",
-        });
+        const pyodide = await Promise.race([
+          window.loadPyodide!({ indexURL: PYODIDE_CDN }),
+          timeout("Timed out initializing Python runtime"),
+        ]);
 
         await pyodide.loadPackage(["numpy"]);
         pyodideRef.current = pyodide;
@@ -84,10 +96,8 @@ sys.stdout = StringIO()
 `);
 
         const testCasesJson = JSON.stringify(testCases);
-        const runnerWithTests = testRunnerCode.replace(
-          "__TEST_CASES__",
-          testCasesJson
-        );
+        // Use function form to prevent $ in JSON being treated as special replacement patterns
+        const runnerWithTests = testRunnerCode.replace("__TEST_CASES__", () => testCasesJson);
 
         const fullCode = `${userCode}\n${runnerWithTests}`;
         const result = await pyodide.runPythonAsync(fullCode);
