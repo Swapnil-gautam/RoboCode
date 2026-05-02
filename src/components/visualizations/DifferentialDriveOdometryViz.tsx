@@ -109,7 +109,7 @@ const PRESETS = [
 ];
 
 export default function DifferentialDriveOdometryViz() {
-  const [dL, setDL] = useState(0.4);
+  const [dL, setDL] = useState(0.8);
   const [dR, setDR] = useState(0.8);
   const [pose,  setPose]  = useState<Pose>({ x: 0, y: 0, theta: 0 });
   const [trail, setTrail] = useState<Pose[]>([{ x: 0, y: 0, theta: 0 }]);

@@ -4,6 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+## Project Overview
+
+TorqueFlow is a robotics learning platform designed to take users from basics to advanced expertise — both in theory and practice. It presents robotics problems organized by topic (Kinematics, Controls, Localization, Path Planning, Decision Making, Dynamics), progressing in difficulty. Each problem pairs a code-solving challenge with an interactive visualization that builds intuition for the underlying algorithm or method, while grounding it in industry-relevant context so users develop real-world applicable skills.
+
+The target experience: a user picks a topic, reads the theory, solves problems by writing Python code, sees their solution animate in the visualization, and walks away understanding both the math and how it's used in real robotics systems.
+
+## Behavioral Guidelines
+
+These bias toward caution over speed. For trivial tasks, use judgment.
+
+**Think before coding.** State assumptions explicitly before implementing. If multiple interpretations exist, present them — don't pick silently. If something is unclear, stop and ask rather than guess.
+
+**Simplicity first.** Minimum code that solves the problem. No speculative features, no abstractions for single-use code, no configurability that wasn't requested. If it could be 50 lines, don't write 200.
+
+**Surgical changes.** Touch only what the request requires. Don't improve adjacent code, reformat, or refactor things that aren't broken. Match existing style. If you notice unrelated dead code, mention it — don't delete it. Remove only imports/variables/functions that *your* changes made unused.
+
+**Goal-driven execution.** For non-trivial tasks, state a brief plan with verifiable steps before starting. Transform vague requests into checkable criteria ("make it work" → "these specific cases should pass"). Ask clarifying questions before implementing, not after mistakes.
+
 ## Commands
 
 ```bash

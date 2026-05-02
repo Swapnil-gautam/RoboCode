@@ -35,15 +35,17 @@ In this problem, you will implement the next-state logic for a small delivery ro
 
 Use these transitions:
 
-- \`IDLE\` + \`start_mission\` -> \`NAVIGATING\`
-- \`NAVIGATING\` + \`obstacle_detected\` -> \`AVOIDING_OBSTACLE\`
-- \`AVOIDING_OBSTACLE\` + \`path_cleared\` -> \`NAVIGATING\`
-- \`NAVIGATING\` + \`battery_low\` -> \`DOCKING\`
-- \`AVOIDING_OBSTACLE\` + \`battery_low\` -> \`DOCKING\`
-- \`DOCKING\` + \`dock_reached\` -> \`CHARGING\`
-- \`CHARGING\` + \`charged\` -> \`IDLE\`
+| Current State | Event | Next State |
+|---|---|---|
+| \`IDLE\` | \`start_mission\` | \`NAVIGATING\` |
+| \`NAVIGATING\` | \`obstacle_detected\` | \`AVOIDING_OBSTACLE\` |
+| \`NAVIGATING\` | \`battery_low\` | \`DOCKING\` |
+| \`AVOIDING_OBSTACLE\` | \`path_cleared\` | \`NAVIGATING\` |
+| \`AVOIDING_OBSTACLE\` | \`battery_low\` | \`DOCKING\` |
+| \`DOCKING\` | \`dock_reached\` | \`CHARGING\` |
+| \`CHARGING\` | \`charged\` | \`IDLE\` |
 
-If an event is not valid for the current state, stay in the same state.
+If an event is not valid for the current state, return the same state unchanged.
 
 ---
 

@@ -1,44 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { VizErrorBoundary } from "./VizErrorBoundary";
 
-type StateName =
-  | "IDLE"
-  | "NAVIGATING"
-  | "AVOIDING_OBSTACLE"
-  | "DOCKING"
-  | "CHARGING";
+type StateName = "IDLE" | "NAVIGATING" | "AVOIDING_OBSTACLE" | "DOCKING" | "CHARGING";
+
+const NW = 96, NH = 40;
+const HW = NW / 2, HH = NH / 2;
+
+const nodePos: Record<StateName, { x: number; y: number }> = {
+  IDLE:              { x:  76, y: 152 },
+  NAVIGATING:        { x: 244, y:  82 },
+  AVOIDING_OBSTACLE: { x: 442, y:  82 },
+  DOCKING:           { x: 244, y: 222 },
+  CHARGING:          { x: 442, y: 222 },
+};
+
+const nodeLabels: Record<StateName, string[]> = {
+  IDLE:              ["IDLE"],
+  NAVIGATING:        ["NAVIGATING"],
+  AVOIDING_OBSTACLE: ["AVOIDING", "OBSTACLE"],
+  DOCKING:           ["DOCKING"],
+  CHARGING:          ["CHARGING"],
+};
 
 const transitions: Record<StateName, Partial<Record<string, StateName>>> = {
-  IDLE: {
-    start_mission: "NAVIGATING",
-  },
-  NAVIGATING: {
-    obstacle_detected: "AVOIDING_OBSTACLE",
-    battery_low: "DOCKING",
-  },
-  AVOIDING_OBSTACLE: {
-    path_cleared: "NAVIGATING",
-    battery_low: "DOCKING",
-  },
-  DOCKING: {
-    dock_reached: "CHARGING",
-  },
-  CHARGING: {
-    charged: "IDLE",
-  },
+  IDLE:              { start_mission: "NAVIGATING" },
+  NAVIGATING:        { obstacle_detected: "AVOIDING_OBSTACLE", battery_low: "DOCKING" },
+  AVOIDING_OBSTACLE: { path_cleared: "NAVIGATING", battery_low: "DOCKING" },
+  DOCKING:           { dock_reached: "CHARGING" },
+  CHARGING:          { charged: "IDLE" },
 };
 
-const positions: Record<StateName, { x: number; y: number }> = {
-  IDLE: { x: 90, y: 120 },
-  NAVIGATING: { x: 220, y: 70 },
-  AVOIDING_OBSTACLE: { x: 380, y: 70 },
-  DOCKING: { x: 220, y: 190 },
-  CHARGING: { x: 380, y: 190 },
-};
+type EdgeDef = { from: StateName; to: StateName; event: string; bend?: number };
 
-const events = [
+const edgeDefs: EdgeDef[] = [
+  { from: "IDLE",              to: "NAVIGATING",        event: "start_mission" },
+  { from: "NAVIGATING",        to: "AVOIDING_OBSTACLE", event: "obstacle_detected", bend: -28 },
+  { from: "AVOIDING_OBSTACLE", to: "NAVIGATING",        event: "path_cleared",      bend: -28 },
+  { from: "NAVIGATING",        to: "DOCKING",           event: "battery_low" },
+  { from: "AVOIDING_OBSTACLE", to: "DOCKING",           event: "battery_low" },
+  { from: "DOCKING",           to: "CHARGING",          event: "dock_reached" },
+  { from: "CHARGING",          to: "IDLE",              event: "charged" },
+];
+
+
+const demoSequence = [
   "start_mission",
   "obstacle_detected",
   "path_cleared",
@@ -47,82 +54,219 @@ const events = [
   "charged",
 ];
 
-export default function FiniteStateMachineViz() {
-  const [currentState, setCurrentState] = useState<StateName>("IDLE");
-  const [history, setHistory] = useState<string[]>([]);
+function nodeEdgePt(center: { x: number; y: number }, toward: { x: number; y: number }) {
+  const dx = toward.x - center.x;
+  const dy = toward.y - center.y;
+  if (!dx && !dy) return center;
+  const t = Math.min(Math.abs(HW / dx), Math.abs(HH / dy));
+  return { x: center.x + dx * t, y: center.y + dy * t };
+}
 
-  function handleEvent(event: string) {
-    const next = transitions[currentState][event] ?? currentState;
-    setCurrentState(next);
-    setHistory((prev) => [`${currentState} --${event}--> ${next}`, ...prev].slice(0, 5));
+type EdgePath = { d: string; lx: number; ly: number; labelAbove: boolean };
+
+function buildEdge(e: EdgeDef): EdgePath {
+  const a = nodePos[e.from];
+  const b = nodePos[e.to];
+
+  if (!e.bend) {
+    const s = nodeEdgePt(a, b);
+    const en = nodeEdgePt(b, a);
+    const dx = en.x - s.x, dy = en.y - s.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const ex = en.x - (dx / len) * 9;
+    const ey = en.y - (dy / len) * 9;
+    // Perpendicular offset for label (pick the side with less obstruction)
+    const px = -dy / len, py = dx / len;
+    return {
+      d: `M ${s.x.toFixed(1)} ${s.y.toFixed(1)} L ${ex.toFixed(1)} ${ey.toFixed(1)}`,
+      lx: (s.x + ex) / 2 + px * 10,
+      ly: (s.y + ey) / 2 + py * 10,
+      labelAbove: false,
+    };
   }
 
+  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const cpx = mx - (dy / len) * e.bend;
+  const cpy = my + (dx / len) * e.bend;
+
+  const s = nodeEdgePt(a, { x: cpx, y: cpy });
+  const en = nodeEdgePt(b, { x: cpx, y: cpy });
+  const edx = en.x - cpx, edy = en.y - cpy;
+  const elen = Math.sqrt(edx * edx + edy * edy);
+  const ex = en.x - (edx / elen) * 9;
+  const ey = en.y - (edy / elen) * 9;
+
+  const avgY = (a.y + b.y) / 2;
+  const above = cpy < avgY;
+  return {
+    d: `M ${s.x.toFixed(1)} ${s.y.toFixed(1)} Q ${cpx.toFixed(1)} ${cpy.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}`,
+    lx: cpx,
+    ly: cpy + (above ? -10 : 10),
+    labelAbove: above,
+  };
+}
+
+const builtEdges = edgeDefs.map(buildEdge);
+
+export default function FiniteStateMachineViz() {
+  const [current, setCurrent] = useState<StateName>("IDLE");
+  const [lastEdge, setLastEdge] = useState<string | null>(null);
+  const [history, setHistory] = useState<Array<{ from: StateName; event: string; to: StateName }>>([]);
+  const [isDemo, setIsDemo] = useState(false);
+  const [demoStep, setDemoStep] = useState(0);
+  const validEvents = new Set(Object.keys(transitions[current]));
+
+  // Clear edge highlight after 700ms
+  useEffect(() => {
+    if (!lastEdge) return;
+    const id = window.setTimeout(() => setLastEdge(null), 700);
+    return () => window.clearTimeout(id);
+  }, [lastEdge]);
+
+  // Demo auto-play — current is a dep so the closure always reads the live state
+  useEffect(() => {
+    if (!isDemo) return;
+    if (demoStep >= demoSequence.length) {
+      setIsDemo(false);
+      setDemoStep(0);
+      return;
+    }
+    const event = demoSequence[demoStep];
+    const id = window.setTimeout(() => {
+      const next = transitions[current][event];
+      if (next) {
+        setLastEdge(`${current}--${event}--${next}`);
+        setHistory((h) => [{ from: current, event, to: next }, ...h].slice(0, 7));
+        setCurrent(next);
+      }
+      setDemoStep((s) => s + 1);
+    }, 950);
+    return () => window.clearTimeout(id);
+  }, [isDemo, demoStep, current]);
+
   function reset() {
-    setCurrentState("IDLE");
+    setCurrent("IDLE");
     setHistory([]);
+    setLastEdge(null);
+    setIsDemo(false);
+    setDemoStep(0);
   }
 
   return (
     <VizErrorBoundary>
       <div>
         <div className="bg-bg-primary p-3">
-          <svg viewBox="0 0 500 260" className="h-[240px] w-full">
-            <rect width="500" height="260" fill="#0a0f0d" />
-
-            {[
-              ["IDLE", "NAVIGATING"],
-              ["NAVIGATING", "AVOIDING_OBSTACLE"],
-              ["NAVIGATING", "DOCKING"],
-              ["AVOIDING_OBSTACLE", "NAVIGATING"],
-              ["AVOIDING_OBSTACLE", "DOCKING"],
-              ["DOCKING", "CHARGING"],
-              ["CHARGING", "IDLE"],
-            ].map(([from, to]) => {
-              const a = positions[from as StateName];
-              const b = positions[to as StateName];
-              return (
-                <line
-                  key={`${from}-${to}`}
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke="#32513d"
-                  strokeWidth="2"
-                  markerEnd="url(#arrow)"
-                />
-              );
-            })}
-
+          <svg viewBox="0 0 540 305" className="h-[290px] w-full">
             <defs>
-              <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
-                <path d="M 0 0 L 8 4 L 0 8 z" fill="#32513d" />
+              <marker id="fsm-arr" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+                <path d="M 0 1 L 8 4.5 L 0 8 z" fill="#4b5563" />
+              </marker>
+              <marker id="fsm-arr-hot" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+                <path d="M 0 1 L 8 4.5 L 0 8 z" fill="#22c55e" />
+              </marker>
+              <marker id="fsm-arr-dim" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+                <path d="M 0 1 L 8 4.5 L 0 8 z" fill="#374151" />
               </marker>
             </defs>
 
-            {(Object.keys(positions) as StateName[]).map((state) => {
-              const pos = positions[state];
-              const active = currentState === state;
+            {/* Edges */}
+            {edgeDefs.map((e, i) => {
+              const { d, lx, ly } = builtEdges[i];
+              const edgeKey = `${e.from}--${e.event}--${e.to}`;
+              const isHot = lastEdge === edgeKey;
+              const isReachable = e.from === current && validEvents.has(e.event);
+
+              const stroke = isHot ? "#22c55e" : isReachable ? "#4ade80" : "#1f2937";
+              const sw = isHot ? 2.5 : isReachable ? 1.5 : 1.5;
+              const marker = isHot ? "url(#fsm-arr-hot)" : isReachable ? "url(#fsm-arr)" : "url(#fsm-arr-dim)";
+              const labelColor = isHot ? "#86efac" : isReachable ? "#6ee7b7" : "#374151";
+
+              const words = e.event.split("_");
+
+              return (
+                <g key={edgeKey}>
+                  <path
+                    d={d}
+                    stroke={stroke}
+                    strokeWidth={sw}
+                    fill="none"
+                    markerEnd={marker}
+                  />
+                  {/* Label background */}
+                  <rect
+                    x={lx - 22}
+                    y={ly - (words.length > 1 ? 16 : 8)}
+                    width={44}
+                    height={words.length > 1 ? 20 : 12}
+                    rx="2"
+                    fill="#0a0f0d"
+                    opacity="0.85"
+                  />
+                  {words.map((word, wi) => (
+                    <text
+                      key={wi}
+                      x={lx}
+                      y={ly - (words.length - 1) * 5 + wi * 10}
+                      fill={labelColor}
+                      textAnchor="middle"
+                      fontSize="7.5"
+                      fontFamily="monospace"
+                    >
+                      {word}
+                    </text>
+                  ))}
+                </g>
+              );
+            })}
+
+            {/* Nodes */}
+            {(Object.keys(nodePos) as StateName[]).map((state) => {
+              const { x, y } = nodePos[state];
+              const active = current === state;
+              const lines = nodeLabels[state];
+
               return (
                 <g key={state}>
-                  <circle
-                    cx={pos.x}
-                    cy={pos.y}
-                    r="36"
-                    fill={active ? "#14532d" : "#111827"}
-                    stroke={active ? "#22c55e" : "#4b5563"}
-                    strokeWidth="3"
+                  {/* Glow ring */}
+                  {active && (
+                    <rect
+                      x={x - HW - 4}
+                      y={y - HH - 4}
+                      width={NW + 8}
+                      height={NH + 8}
+                      rx="11"
+                      fill="none"
+                      stroke="#22c55e"
+                      strokeWidth="2"
+                      opacity="0.25"
+                    />
+                  )}
+                  <rect
+                    x={x - HW}
+                    y={y - HH}
+                    width={NW}
+                    height={NH}
+                    rx="8"
+                    fill={active ? "#052e16" : "#0f172a"}
+                    stroke={active ? "#22c55e" : "#1e293b"}
+                    strokeWidth={active ? 2 : 1.5}
                   />
-                  <text
-                    x={pos.x}
-                    y={pos.y + 4}
-                    fill="#f8fafc"
-                    textAnchor="middle"
-                    fontSize="10"
-                    fontWeight="700"
-                  >
-                    {state}
-                  </text>
+                  {lines.map((line, li) => (
+                    <text
+                      key={li}
+                      x={x}
+                      y={y + li * 12 - (lines.length - 1) * 6 + 4}
+                      fill={active ? "#86efac" : "#64748b"}
+                      textAnchor="middle"
+                      fontSize={lines.length > 1 ? "8.5" : "9"}
+                      fontWeight="700"
+                      fontFamily="monospace"
+                    >
+                      {line}
+                    </text>
+                  ))}
                 </g>
               );
             })}
@@ -130,36 +274,53 @@ export default function FiniteStateMachineViz() {
         </div>
 
         <div className="space-y-3 border-t border-border-default bg-bg-secondary p-4">
-          <div className="flex flex-wrap gap-2">
-            {events.map((event) => (
-              <button
-                key={event}
-                onClick={() => handleEvent(event)}
-                className="rounded-full bg-bg-tertiary px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:bg-bg-hover hover:text-text-primary"
-              >
-                {event}
-              </button>
-            ))}
+          {/* Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setCurrent("IDLE");
+                setHistory([]);
+                setLastEdge(null);
+                setDemoStep(0);
+                setIsDemo(true);
+              }}
+              disabled={isDemo}
+              className="rounded-md border border-border-default px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:bg-bg-hover disabled:opacity-50"
+            >
+              {isDemo ? `Running… (${demoStep}/${demoSequence.length})` : "▶ Demo cycle"}
+            </button>
             <button
               onClick={reset}
-              className="rounded-full border border-border-default px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:bg-bg-hover"
+              className="rounded-md border border-border-default px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:bg-bg-hover"
             >
               Reset
             </button>
+            <div className="ml-auto text-xs text-text-secondary">
+              State:{" "}
+              <span className="font-mono text-accent-green">{current}</span>
+            </div>
           </div>
 
-          <div className="rounded-lg border border-border-default bg-bg-primary/60 p-3 text-xs text-text-secondary">
-            Current state: <span className="font-mono text-accent-green">{currentState}</span>
-          </div>
-
-          <div className="rounded-lg border border-border-default bg-bg-primary/60 p-3 text-xs text-text-secondary">
-            <div className="mb-2 font-semibold text-text-primary">Recent transitions</div>
+          {/* Transition log */}
+          <div className="rounded-lg border border-border-default bg-bg-primary/60 p-3">
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+              Transition log
+            </div>
             {history.length === 0 ? (
-              <div className="text-text-muted">Trigger events to watch the FSM move.</div>
+              <div className="text-xs text-text-muted">Fire an event to see transitions.</div>
             ) : (
-              <div className="space-y-1 font-mono text-[11px]">
-                {history.map((item) => (
-                  <div key={item}>{item}</div>
+              <div className="space-y-1">
+                {history.map((h, i) => (
+                  <div
+                    key={i}
+                    className={`flex flex-wrap items-center gap-1 font-mono text-[11px] ${i === 0 ? "" : "opacity-50"}`}
+                  >
+                    <span className="text-cyan-400">{h.from}</span>
+                    <span className="text-text-muted">─</span>
+                    <span className={i === 0 ? "text-amber-400" : "text-text-muted"}>{h.event}</span>
+                    <span className="text-text-muted">→</span>
+                    <span className={i === 0 ? "text-accent-green" : "text-text-muted"}>{h.to}</span>
+                  </div>
                 ))}
               </div>
             )}
